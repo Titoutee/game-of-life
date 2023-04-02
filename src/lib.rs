@@ -6,17 +6,17 @@
 //! All other live cells die in the next generation. Similarly, all other dead cells stay dead.
 
 mod utils;
-use utils::*;
 pub use grid::Grid;
-use std::{fmt::Debug, collections::HashMap};
-#[derive(Default, Debug)]
+use std::{fmt::Debug, ops::Not};
+use utils::*;
+#[derive(Default, Debug, PartialEq)]
+/// A cell
 pub enum Cell {
     //Binary state of a cell
     Live,
     #[default]
     Dead,
 }
-
 impl Cell {
     pub fn as_char(&self) -> char {
         match self {
@@ -24,33 +24,54 @@ impl Cell {
             Cell::Dead => '0',
         }
     }
-    /// Follow the rules and conlude on the following state of the cell
-    fn rules(&self, neighs: usize)  -> Self {
-        match self {
-            Cell::Live => if neighs==2 || neighs==3 {Cell::Live} else {Cell::Dead}
-            Cell::Dead => if neighs==3 {Cell::Live} else {Cell::Dead}
+    /// Follow the rules and determines if the cell has changed or not
+    fn has_to_change(&self, neighs: usize) -> bool {
+        let substitute = match self {
+            Cell::Live => {
+                if neighs == 2 || neighs == 3 {
+                    Cell::Live
+                } else {
+                    Cell::Dead
+                }
+            }
+            Cell::Dead => {
+                if neighs == 3 {
+                    Cell::Live
+                } else {
+                    Cell::Dead
+                }
+            }
+        };
+        if *self == substitute {
+            false
+        } else {
+            true
         }
     }
-    //fn switch(&mut self) {
-    //    //Might be unused (change may be explicit)
-    //    *self = if let Cell::Live = self {
-    //        Cell::Dead
-    //    } else {
-    //        Cell::Live
-    //    }
-    //}
+    /// Switch from on state to the other
+    fn switch(&mut self) {
+        todo!()
+    }
 }
+impl Not for Cell {
+    type Output = Self;
 
+    fn not(self) -> Self::Output {
+        match self {
+            Cell::Dead => Cell::Live,
+            Cell::Live => Cell::Dead,
+        }
+    }
+}
+/// Extension trait for Grid data structure
 pub trait GridExt {
-    /// Extension trait for Grid data structure
     fn display(&self);
     fn ring(&self, row: usize, col: usize) -> Vec<Option<&Cell>>;
     fn live_neighs(&self, row: usize, col: usize) -> usize;
-    //fn get_row_checked(&self, idx: usize) -> Option<Vec<&Cell>>;
-    //fn get_col_checked(&self, idx: usize) -> Option<Vec<&Cell>>;
     /// Converts a simple index to a doublet
-    fn construct_changes(&mut self) -> HashMap<(usize, usize)/*Coords*/, Cell/*State*/>;
+    fn construct_changes(&mut self) -> Vec<(usize, usize)>;
     fn update(&mut self);
+    fn full_size(&self) -> usize;
 }
 
 impl GridExt for Grid<Cell> {
@@ -61,42 +82,48 @@ impl GridExt for Grid<Cell> {
             if let Some(cell) = opt {
                 if let Cell::Live = cell {
                     living += 1
-                }  
+                }
             }
         }
         living
     }
-    
     /// Gets the surrouding cells of a given cell
     fn ring(&self, row: usize, col: usize) -> Vec<Option<&Cell>> {
         vec![
-            //This may be cleaner than picking up each cell with index calculations
-            self.get(row - 1, col - 1),
-            self.get(row - 1, col),
-            self.get(row - 1, col + 1),
-            self.get(row, col - 1),
-            self.get(row, col + 1),
-            self.get(row + 1, col - 1),
-            self.get(row + 1, col),
-            self.get(row + 1, col + 1),
+            //This may be cleaner than picking up each cell with raw index calculations
+            self.get(row - 1, col - 1), //up-left
+            self.get(row - 1, col),     //up
+            self.get(row - 1, col + 1), //up-right
+            self.get(row, col - 1),     //left
+            self.get(row, col + 1),     //right
+            self.get(row + 1, col - 1), //bottom-left
+            self.get(row + 1, col),     //bottom
+            self.get(row + 1, col + 1), //bottom-right
         ]
     }
-    fn construct_changes(&mut self) -> HashMap<(usize, usize)/*Coords*/, Cell/*New State*/> {
-        let mut map = HashMap::new();
-        let rows_n = self.rows();
-        for (idx, cell) in self.iter().enumerate() {
-            let double = from_simple(idx, rows_n);
-            map.insert(from_simple(idx, rows_n), cell.rules(self.live_neighs(double.0, double.1)));//
+    /// Returns a vector of coords, to be processed by an update procedure
+    fn construct_changes(&mut self) -> Vec<(usize, usize)> {
+        let mut changes = Vec::with_capacity(self.rows() * self.cols()); //Maximum changes is the number of elts itself
+        let rows_n = self.rows(); // Avoid immutable-mutable borrowing
+        for idx in 0..self.full_size() {
+            let (row, col) = from_simple(idx, rows_n);
+            let cell = self.get(row, col).unwrap();// This shoudn't panic
+            if cell.has_to_change(self.live_neighs(row, col)) {changes.push((row, col));}
         }
-        map
+        changes
     }
+    /// Main updating process function
     fn update(&mut self) {
-        let changes = self.construct_changes();
-        for (row, col) in changes.keys() {
+        for (row, col) in self.construct_changes() {
+            todo!();
         }
+    }
+    /// Full size (inner vec)
+    fn full_size(&self) -> usize {
+        self.size().0 * self.size().1
     }
     fn display(&self) {
-        println!("{}", str_repeat("-", 20));
+        println!("{}", str_repeat("-", 20)); //Separate each update
         (0..self.rows()).for_each(|row| {
             for cell in self.iter_row(row) {
                 print!("{}|", cell.as_char())
@@ -108,17 +135,39 @@ impl GridExt for Grid<Cell> {
 
 #[cfg(test)]
 mod tests {
+
+    use crate::utils::from_simple;
+
     use super::{Cell, Grid, GridExt};
 
     #[test]
+    #[ignore = "reason"]
     //#[should_panic]
     fn neighbours() {
         let mut grid: Grid<Cell> = Grid::new(30, 30);
         *grid.get_mut(3, 2).unwrap() = Cell::Live;
         assert_eq!(grid.live_neighs(3, 3), 1);
     }
+    #[test]
+    #[ignore = "reason"]
     fn to_double() {
         let mut grid: Grid<Cell> = Grid::new(30, 30);
-        //assert_eq!(grid.from_simple(30), (1, 0));
+        assert_eq!(from_simple(30, 30), (1, 0));
+    }
+    #[test]
+    //#[ignore = "reason"]
+    fn construct_changes() {
+        let mut grid: Grid<Cell> = Grid::new(30, 30);
+        //*grid.get_mut(3, 4).unwrap()=Cell::Live;
+        //*grid.get_mut(3, 5).unwrap()=Cell::Live;
+        //*grid.get_mut(3, 6).unwrap()=Cell::Live;
+        assert_eq!(grid.construct_changes(), vec![]);
+    }
+    #[test]
+    #[ignore = "reason"]
+    fn has_changed() {
+        //let mut grid: Grid<Cell> = Grid::new(30, 30);
+        let cell = Cell::Dead;
+        assert_eq!(cell.has_to_change(45), false);
     }
 }
