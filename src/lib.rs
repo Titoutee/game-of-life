@@ -7,7 +7,7 @@
 
 mod utils;
 pub use grid::Grid;
-use std::{fmt::Debug, ops::Not};
+use std::{fmt::Debug};
 use utils::*;
 #[derive(Default, Debug, PartialEq)]
 /// A cell
@@ -56,16 +56,7 @@ impl Cell {
         Cell::Live
     }
 }
-//impl Not for Cell {
-//    type Output = Self;
-//
-//    fn not(self) -> Self::Output {
-//        match self {
-//            Cell::Dead => Cell::Live,
-//            Cell::Live => Cell::Dead,
-//        }
-//    }
-//}
+
 /// Extension trait for Grid data structure
 pub trait GridExt {
     fn display(&self);
@@ -161,7 +152,7 @@ mod tests {
     #[test]
     #[ignore = "reason"]
     fn to_double() {
-        let mut grid: Grid<Cell> = Grid::new(30, 30);
+        //let grid: Grid<Cell> = Grid::new(30, 30);
         assert_eq!(from_simple(30, 30), (1, 0));
     }
     #[test]
@@ -183,7 +174,7 @@ mod tests {
     #[test]
     #[ignore = "reason"]
     fn ring() {
-        let mut grid: Grid<Cell> = Grid::new(30, 30);
+        let grid: Grid<Cell> = Grid::new(30, 30);
         println!("{:?}", grid.ring(0, 0));
     }
 }
