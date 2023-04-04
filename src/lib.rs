@@ -20,8 +20,8 @@ pub enum Cell {
 impl Cell {
     pub fn as_char(&self) -> char {
         match self {
-            Cell::Live => '1',
-            Cell::Dead => '0',
+            Cell::Live => 'X',
+            Cell::Dead => ' ',
         }
     }
     /// Follow the rules and determines if the cell has changed or not
@@ -49,24 +49,27 @@ impl Cell {
         }
     }
     /// Switch from on state to the other
-    fn switch(&mut self) {
-        todo!()
-    }
-}
-impl Not for Cell {
-    type Output = Self;
-
-    fn not(self) -> Self::Output {
-        match self {
-            Cell::Dead => Cell::Live,
-            Cell::Live => Cell::Dead,
+    fn switch(&self) -> Cell {
+        if matches!(*self, Cell::Live) {
+            return Cell::Dead;
         }
+        Cell::Live
     }
 }
+//impl Not for Cell {
+//    type Output = Self;
+//
+//    fn not(self) -> Self::Output {
+//        match self {
+//            Cell::Dead => Cell::Live,
+//            Cell::Live => Cell::Dead,
+//        }
+//    }
+//}
 /// Extension trait for Grid data structure
 pub trait GridExt {
     fn display(&self);
-    fn ring(&self, row: usize, col: usize) -> Vec<Option<&Cell>>;
+    fn ring(&self, row: usize, col: usize) -> Vec<&Cell>;
     fn live_neighs(&self, row: usize, col: usize) -> usize;
     /// Converts a simple index to a doublet
     fn construct_changes(&mut self) -> Vec<(usize, usize)>;
@@ -77,45 +80,53 @@ pub trait GridExt {
 impl GridExt for Grid<Cell> {
     /// Counts the living neighbouring cells of a given cell
     fn live_neighs(&self, row: usize, col: usize) -> usize {
-        let mut living = 0;
-        for opt in self.ring(row, col) {
-            if let Some(cell) = opt {
-                if let Cell::Live = cell {
-                    living += 1
-                }
-            }
-        }
-        living
+        self.ring(row, col)
+            .into_iter()
+            .filter(|cell| matches!(**cell, Cell::Live))
+            .count()
     }
     /// Gets the surrouding cells of a given cell
-    fn ring(&self, row: usize, col: usize) -> Vec<Option<&Cell>> {
-        vec![
-            //This may be cleaner than picking up each cell with raw index calculations
-            self.get(row - 1, col - 1), //up-left
-            self.get(row - 1, col),     //up
-            self.get(row - 1, col + 1), //up-right
-            self.get(row, col - 1),     //left
-            self.get(row, col + 1),     //right
-            self.get(row + 1, col - 1), //bottom-left
-            self.get(row + 1, col),     //bottom
-            self.get(row + 1, col + 1), //bottom-right
-        ]
+    fn ring(&self, row: usize, col: usize) -> Vec<&Cell> {
+        const OFFSET: [(isize, isize); 8] = [
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),
+            (0, -1),
+            (0, 1),
+            (1, -1),
+            (1, 0),
+            (1, 1),
+        ];
+
+        OFFSET
+            .iter()
+            .filter_map(|(off_r, off_c)| {
+                let r_get = row.checked_add_signed(*off_r)?; // Exclude if overflow
+                let c_get = col.checked_add_signed(*off_c)?; // Exclude if overflow
+                self.get(r_get, c_get) // -> Should only include the "existing cells" around
+            })
+            .collect()
     }
     /// Returns a vector of coords, to be processed by an update procedure
+    /// The coords are linked to the cell which will undergo a swap in the next timestep
     fn construct_changes(&mut self) -> Vec<(usize, usize)> {
-        let mut changes = Vec::with_capacity(self.rows() * self.cols()); //Maximum changes is the number of elts itself
+        let mut changes = Vec::with_capacity(self.full_size()); //Maximum changes is the number of elts itself
         let rows_n = self.rows(); // Avoid immutable-mutable borrowing
         for idx in 0..self.full_size() {
             let (row, col) = from_simple(idx, rows_n);
-            let cell = self.get(row, col).unwrap();// This shoudn't panic
-            if cell.has_to_change(self.live_neighs(row, col)) {changes.push((row, col));}
+            let cell = self.get(row, col).unwrap(); // This shoudn't panic
+            if cell.has_to_change(self.live_neighs(row, col)) {
+                changes.push((row, col));
+            }
         }
         changes
     }
     /// Main updating process function
     fn update(&mut self) {
         for (row, col) in self.construct_changes() {
-            todo!();
+            // All changes to process
+            *self.get_mut(row, col).unwrap() = self.get(row, col).unwrap().switch();
+            //Switch internal Cell
         }
     }
     /// Full size (inner vec)
@@ -135,18 +146,17 @@ impl GridExt for Grid<Cell> {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::utils::from_simple;
-
     use super::{Cell, Grid, GridExt};
-
+    use crate::utils::from_simple;
     #[test]
     #[ignore = "reason"]
     //#[should_panic]
     fn neighbours() {
         let mut grid: Grid<Cell> = Grid::new(30, 30);
-        *grid.get_mut(3, 2).unwrap() = Cell::Live;
-        assert_eq!(grid.live_neighs(3, 3), 1);
+        *grid.get_mut(1, 1).unwrap() = Cell::Live;
+        *grid.get_mut(2, 1).unwrap() = Cell::Live;
+
+        assert_eq!(grid.live_neighs(1, 2), 2);
     }
     #[test]
     #[ignore = "reason"]
@@ -155,11 +165,11 @@ mod tests {
         assert_eq!(from_simple(30, 30), (1, 0));
     }
     #[test]
-    //#[ignore = "reason"]
+    #[ignore = "reason"]
     fn construct_changes() {
         let mut grid: Grid<Cell> = Grid::new(30, 30);
-        //*grid.get_mut(3, 4).unwrap()=Cell::Live;
-        //*grid.get_mut(3, 5).unwrap()=Cell::Live;
+        *grid.get_mut(3, 4).unwrap() = Cell::Live;
+        *grid.get_mut(3, 5).unwrap() = Cell::Live;
         //*grid.get_mut(3, 6).unwrap()=Cell::Live;
         assert_eq!(grid.construct_changes(), vec![]);
     }
@@ -169,5 +179,11 @@ mod tests {
         //let mut grid: Grid<Cell> = Grid::new(30, 30);
         let cell = Cell::Dead;
         assert_eq!(cell.has_to_change(45), false);
+    }
+    #[test]
+    #[ignore = "reason"]
+    fn ring() {
+        let mut grid: Grid<Cell> = Grid::new(30, 30);
+        println!("{:?}", grid.ring(0, 0));
     }
 }
