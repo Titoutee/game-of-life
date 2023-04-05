@@ -1,14 +1,16 @@
-use game_of_life::{Cell, Grid, GridExt};
+use game_of_life::{Cell, LifeGrid};
 use std::{thread,time::Duration};
 fn main() {
-    let mut grid: Grid<Cell> = Grid::new(30, 30);
-    *grid.get_mut(15, 15).unwrap() = Cell::Live;
-    *grid.get_mut(15, 16).unwrap() = Cell::Live;
-    *grid.get_mut(15, 17).unwrap() = Cell::Live;
-    
+    let mut life_grid = LifeGrid::new(30, 30);
+    life_grid.muts(3, 3, Cell::Live);
+    life_grid.muts(3, 4, Cell::Live);
+    life_grid.muts(2, 5, Cell::Live);
+    life_grid.muts(2, 5, Cell::Live);
+    life_grid.muts(1, 2, Cell::Live);
+    life_grid.muts(1, 2, Cell::Live);
     loop {
-        grid.display();
+        println!("{}", life_grid);
         thread::sleep(Duration::new(1, 0));
-        grid.update();
+        life_grid.update();
     }
 }
