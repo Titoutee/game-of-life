@@ -6,7 +6,10 @@
 //! All other live cells die in the next generation. Similarly, all other dead cells stay dead.
 
 use grid::Grid;
-use std::fmt::{Debug, Display};
+use std::{
+    fmt::{Debug, Display},
+    time::Duration,
+};
 #[derive(Default, Debug, PartialEq)]
 /// A cell
 pub enum Cell {
@@ -148,8 +151,20 @@ impl Display for LifeGrid {
     }
 }
 /// Converts an index for a flattened `Vec` to a doublet (row, col) in this order
-pub fn from_simple(simple: usize, rows: usize) -> (usize, usize) {
+fn from_simple(simple: usize, rows: usize) -> (usize, usize) {
     (simple / rows, simple % rows)
+}
+
+/// Parses time amount from the command line
+pub fn parse_time(mut args: impl Iterator<Item = String>) -> Option<Duration> {
+    args.next()?;
+    Some(Duration::from_millis(args.next()?.parse().ok()?))
+}
+
+/// Parses a coords entry into a tuple of two coordinates
+pub fn parse_to_tuple(input: &str) -> Option<(usize, usize)> {
+    let mut coords = input.trim().split(',').filter_map(|coord| coord.parse::<usize>().ok());
+    Some((coords.next()?, coords.next()?))
 }
 
 #[cfg(test)]

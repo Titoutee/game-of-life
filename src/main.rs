@@ -1,16 +1,27 @@
-use game_of_life::{Cell, LifeGrid};
-use std::{thread,time::Duration};
+use game_of_life::{LifeGrid, parse_time, parse_to_tuple, Cell};
+use std::{thread,time::Duration, env, io};
 fn main() {
+    let args = env::args();
+    let time_step = match parse_time(args) {
+        Some(t) => t,
+        _ => Duration::from_secs(1),
+    };
     let mut life_grid = LifeGrid::new(30, 30);
-    life_grid.muts(3, 3, Cell::Live);
-    life_grid.muts(3, 4, Cell::Live);
-    life_grid.muts(2, 5, Cell::Live);
-    life_grid.muts(2, 5, Cell::Live);
-    life_grid.muts(1, 2, Cell::Live);
-    life_grid.muts(1, 2, Cell::Live);
+    let mut input_coords = String::new();
+    loop {
+        io::stdin().read_line(&mut input_coords).unwrap();
+        let coords_tuple = match parse_to_tuple(&input_coords) {
+            Some(tuple) => tuple,
+            _ => break,
+        };
+        match life_grid.grid_mut().get_mut(coords_tuple.0, coords_tuple.1) {
+            Some(cell) => *cell = Cell::Live,
+            _ => break, 
+        }
+    }
     loop {
         println!("{}", life_grid);
-        thread::sleep(Duration::new(1, 0));
+        thread::sleep(time_step);
         life_grid.update();
     }
 }
