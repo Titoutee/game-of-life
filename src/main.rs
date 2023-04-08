@@ -1,5 +1,5 @@
-use game_of_life::{LifeGrid, parse_time, parse_to_tuple, Cell};
-use std::{thread,time::Duration, env, io};
+use game_of_life::{parse_time, parse_to_tuple, Cell, LifeGrid};
+use std::{env, io, thread, time::Duration};
 fn main() {
     let args = env::args();
     let time_step = match parse_time(args) {
@@ -16,7 +16,7 @@ fn main() {
         };
         match life_grid.grid_mut().get_mut(coords_tuple.0, coords_tuple.1) {
             Some(cell) => *cell = Cell::Live,
-            _ => break, 
+            _ => break,
         }
     }
     loop {
@@ -25,3 +25,4 @@ fn main() {
         life_grid.update();
     }
 }
+

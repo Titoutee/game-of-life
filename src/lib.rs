@@ -175,6 +175,6 @@ mod tests {
     fn has_changed() {
         //let mut grid: Grid<Cell> = Grid::new(30, 30);
         let cell = Cell::Dead;
-        assert_eq!(cell.has_to_change(45), false);
+        assert!(!cell.has_to_change(45));
     }
 }
